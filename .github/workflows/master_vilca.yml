@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  PYTHON_VERSION: "3.11" # set this to the python version to use (supports 3.6, 3.7, 3.8)
+  PYTHON_VERSION: "3.11"
 
 jobs:
   build:
@@ -67,8 +67,6 @@ jobs:
 
       - name: Deploy to Azure Functions
         uses: Azure/functions-action@v1
-        id: deploy-to-function
         with:
-          app-name: "vilca"
-          slot-name: "Production"
+          app-name: http_trigger # Asegúrate de que coincide con tu Function App
           package: release.zip
