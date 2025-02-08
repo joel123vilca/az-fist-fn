@@ -1,6 +1,6 @@
 # Diccionario de usuarios (simulando una base de datos en memoria)
 users = {
-    "1": {"name": "John Doe", "email": "john@example.com", "age": 30}
+    "1": {"name": "Joel test", "email": "joel@hola.com", "age": 30}
 }
 
 def create_user(user_id: str, user_data: dict):

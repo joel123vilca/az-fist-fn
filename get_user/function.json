@@ -5,8 +5,8 @@
       "type": "httpTrigger",
       "direction": "in",
       "name": "req",
-      "methods": ["get"],
-      "route": "users/{user_id}"
+      "methods": ["post"],
+      "route": "users"
     },
     {
       "type": "http",

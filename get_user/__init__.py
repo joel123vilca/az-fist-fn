@@ -1,45 +1,47 @@
 import logging
 import azure.functions as func
-from pydantic import BaseModel, ValidationError
-from crud import read_user
 import json
-
-class UserRequest(BaseModel):
-    user_id: str
-
+from crud import create_user  # O el CRUD correspondiente según lo que necesites
 
 def main(req: func.HttpRequest) -> func.HttpResponse:
-    logging.info("Processing request in get_user...")
+    logging.info("Processing request to create user...")
 
-    user_id = req.route_params.get("user_id")
     try:
-        # Validación con Pydantic
-        validated_data = UserRequest(user_id=user_id)
+        # Obtener los datos del cuerpo de la solicitud
+        user_data = req.get_json()
 
-        # Obtener el usuario desde el CRUD
-        user = read_user(validated_data.user_id)
-
-        if "error" in user:
+        # Verificar si el user_id está presente en el cuerpo de la solicitud
+        user_id = user_data.get('user_id')
+        if not user_id:
             return func.HttpResponse(
-                user["error"], status_code=404, mimetype="application/json"
+                "Missing user_id in the request body", 
+                status_code=400, 
+                mimetype="application/json"
             )
 
-        return func.HttpResponse(
-            json.dumps(user), status_code=200, mimetype="application/json"
-        )
+        # Llamar a la función de creación de usuario con el user_id y los datos del usuario
+        response = create_user(user_id, user_data)
 
-    except ValidationError as e:
-        logging.error(f"Validation error: {e}")
+        # Establecer el código de estado según la respuesta del CRUD
+        status_code = 200 if "error" not in response else 400
+
         return func.HttpResponse(
-            json.dumps({"error": "Invalid user ID"}),
+            json.dumps(response),
+            status_code=status_code,
+            mimetype="application/json"
+        )
+        
+    except ValueError:
+        logging.error("Invalid JSON in request body")
+        return func.HttpResponse(
+            "Invalid request body",
             status_code=400,
-            mimetype="application/json",
+            mimetype="application/json"
         )
-
     except Exception as e:
         logging.error(f"Internal error: {e}")
         return func.HttpResponse(
             json.dumps({"error": "Internal server error"}),
             status_code=500,
-            mimetype="application/json",
+            mimetype="application/json"
         )
