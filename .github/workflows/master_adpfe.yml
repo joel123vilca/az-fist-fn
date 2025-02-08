@@ -7,13 +7,14 @@ on:
   workflow_dispatch:
 
 env:
-  PYTHON_VERSION: "3.11" # Versión de Python que deseas utilizar
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
+  PYTHON_VERSION: "3.11" # set this to the python version to use (supports 3.6, 3.7, 3.8)
 
 jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
-      contents: read # Necesario para actions/checkout
+      contents: read #This is required for actions/checkout
 
     steps:
       - name: Checkout repository
@@ -32,23 +33,25 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Opcional: Añadir pruebas aquí si es necesario
+      # Optional: Add step to run tests here
 
       - name: Zip artifact for deployment
-        run: zip -r release.zip . -x "venv/*"
+        run: zip release.zip ./* -r
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: release.zip
+          path: |
+            release.zip
+            !venv/
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
     permissions:
-      id-token: write # Requerido para solicitar el JWT
-      contents: read # Requerido para actions/checkout
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
 
     steps:
       - name: Download artifact from build job
@@ -57,14 +60,14 @@ jobs:
           name: python-app
 
       - name: Unzip artifact for deployment
-        run: unzip release.zip -d ./app
+        run: unzip release.zip
 
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_26EAA543B6814B8495138BAC840BF5DD }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_0D97735C5C9745FDB7F54DF2D1D07F03 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_BD6583776E05418F9E4292F4DF828315 }}
 
       - name: Set SCM_DO_BUILD_DURING_DEPLOYMENT
         run: |
@@ -75,9 +78,11 @@ jobs:
 
       - name: "Deploy to Azure Functions"
         uses: Azure/functions-action@v1
+        id: deploy-to-function
         with:
           app-name: "adpfe"
-          package: ./app
+          slot-name: "Production"
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          enable-oryx-build: true
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
           scm-do-build-during-deployment: true
-          enable-oryx-build: true
