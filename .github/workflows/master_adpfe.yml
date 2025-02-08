@@ -1,88 +1,51 @@
-name: Build and deploy Python project to Azure Function App - adpfe
+name: Azure Function Deploy With CICD
 
 on:
-  push:
-    branches:
-      - master
   workflow_dispatch:
 
-env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: "." # set this to the path to your web app project, defaults to the repository root
-  PYTHON_VERSION: "3.11" # set this to the python version to use (supports 3.6, 3.7, 3.8)
+permissions:
+  id-token: write
+  contents: read
 
 jobs:
-  build:
+  deploy-functions:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read #This is required for actions/checkout
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: Check out repository code
+        uses: actions/checkout@v2
 
-      - name: Setup Python version
-        uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v2
         with:
-          python-version: ${{ env.PYTHON_VERSION }}
+          python-version: "3.11"
+          architecture: x64
 
-      - name: Create and start virtual environment
+      - name: Install required python modules
         run: |
-          python -m venv venv
-          source venv/bin/activate
+          cd ./${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          python -m pip install --upgrade pip
+          pip install --target="./.python_packages/lib/site-packages" -r requirements.txt
 
-      - name: Install dependencies
-        run: pip install -r requirements.txt
+      - name: Zip the Azure Function Deploy folder
+        run: |
+          cd ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+          zip -r ../AzureFunctionApp.zip ./*
 
-      # Optional: Add step to run tests here
-
-      - name: Zip artifact for deployment
-        run: zip release.zip ./* -r
-
-      - name: Upload artifact for deployment job
-        uses: actions/upload-artifact@v4
-        with:
-          name: python-app
-          path: |
-            release.zip
-            !venv/
-
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    permissions:
-      id-token: write #This is required for requesting the JWT
-      contents: read #This is required for actions/checkout
-
-    steps:
-      - name: Download artifact from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: python-app
-
-      - name: Unzip artifact for deployment
-        run: unzip release.zip
-
-      - name: Login to Azure
-        uses: azure/login@v2
+      - name: "Az CLI login"
+        uses: azure/login@v1
         with:
           client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_26EAA543B6814B8495138BAC840BF5DD }}
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_0D97735C5C9745FDB7F54DF2D1D07F03 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_BD6583776E05418F9E4292F4DF828315 }}
 
-      - name: Set SCM_DO_BUILD_DURING_DEPLOYMENT
+      - name: "Run az commands"
         run: |
-          az functionapp config appsettings set \
-            --name adpfe \
-            --resource-group <your-resource-group> \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
+          az account show
+          az group list
 
-      - name: "Deploy to Azure Functions"
-        uses: Azure/functions-action@v1
-        id: deploy-to-function
-        with:
-          app-name: "adpfe"
-          slot-name: "Production"
-          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
-          enable-oryx-build: true
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
-          scm-do-build-during-deployment: true
+      - name: Deploy to Azure Function App
+        run: |
+          az functionapp deployment source config-zip \
+            --name adpfe \
+            --resource-group your-resource-group \
+            --src AzureFunctionApp.zip
