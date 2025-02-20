@@ -1,0 +1,18 @@
+{
+  "bindings": [
+    {
+      "name": "msg",
+      "type": "queueTrigger",
+      "direction": "in",
+      "queueName": "welcome-messages",
+      "connection": "AzureWebJobsStorage"
+    },
+    {
+      "name": "outmsg",
+      "type": "queue",
+      "direction": "out",
+      "queueName": "welcome-messages",
+      "connection": "AzureWebJobsStorage"
+    }
+  ]
+}
